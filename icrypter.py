@@ -3,19 +3,10 @@ import sys
 def shift(x, y):
     if x + y < 0:
         return x + y + 256
+    elif x + y > 255:
+        return x + y - 256
     else:
-        return (x + y) % 256
-
-def hexEnc(x):
-    c = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
-    if x < 16:
-        return '0' + c[x]
-    else:
-        return c[x // 16] + c[x % 16]
-
-def hexDec(x):
-    c = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
-    return c.index(x[0]) * 16 + c.index(x[1])
+        return x + y
 
 if len(sys.argv) > 1:
     if len(sys.argv) == 4:
@@ -68,7 +59,7 @@ enc = True if enc in ['Y', 'y', ''] else False
 print(f'Opening {fileDir}...', end = '')
 try:
     targetFile = open(fileDir, 'rb')
-    fileData = ['{:02X}'.format(b) for b in targetFile.read()]
+    fileData = list(targetFile.read())
     targetFile.close()
     print('\033[92m   [OK]\033[0m')
 except:
@@ -77,16 +68,23 @@ except:
 print(f'{"Encrypting..." if enc else "Decrypting..."}\n\n[--------------------------------------------------] 0/{len(fileData)}', end = '\r')
 
 n = int(key[0])
-for x in range(len(fileData)):
-    fileData[x] = hexEnc(shift(hexDec(fileData[x]), n % 256 if enc else -(n % 256)))
-    n = (n * key[1] + key[2])
-    p = int((x + 1) / len(fileData) * 50)
-    print(f"[{'#' * p}{'-' * (50 - p)}] {x}/{len(fileData)}", end = '\r')
+if enc:
+    for x in range(len(fileData)):
+        fileData[x] = shift(fileData[x], n % 256)
+        n = (n * key[1] + key[2])
+        p = int((x + 1) / len(fileData) * 50)
+        print(f"[{'#' * p}{'-' * (50 - p)}] {x}/{len(fileData)}", end = '\r')
+else:
+    for x in range(len(fileData)):
+        fileData[x] = shift(fileData[x], -(n % 256))
+        n = (n * key[1] + key[2])
+        p = int((x + 1) / len(fileData) * 50)
+        print(f"[{'#' * p}{'-' * (50 - p)}] {x}/{len(fileData)}", end = '\r')
 
 print(f'\n\n\033[92m{"[FILE ENCRYPTED]" if enc else "[FILE DECRYPTED]"}\033[0m\n\nWriting to {fileDir}...', end = '')
 try:
     targetFile = open(fileDir, 'wb')
-    targetFile.write(bytearray.fromhex(''.join(fileData)))
+    targetFile.write(bytes(fileData))
     targetFile.close()
     print('\033[92m   [OK]\033[0m')
 except:
