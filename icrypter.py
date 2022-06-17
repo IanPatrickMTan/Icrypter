@@ -1,4 +1,5 @@
 import sys
+import numpy as np
 
 def shift(x, y):
     if x + y < 0:
@@ -9,10 +10,10 @@ def shift(x, y):
         return x + y
 
 if len(sys.argv) > 1:
-    if len(sys.argv) == 4:
-        fileDir, key, enc = sys.argv[1:]
+    if len(sys.argv) == 5:
+        fileDir, key, enc, sht = sys.argv[1:]
     else:
-        print('Wrong number of arguments, you need 3 (e.g. test.txt 10-10-10 y)')
+        print('Wrong number of arguments, you need 4 (e.g. test.txt 10-10-10 y, n)')
         exit()
     try:
         key = key.split('-')
@@ -29,6 +30,8 @@ if len(sys.argv) > 1:
         print('Invalid key entered, please try again with a valid key.')
         exit()
     if not enc in ['Y', 'y', 'N', 'n', '']:
+        print('Invalid option selected, please select again.')
+    if not sht in ['Y', 'y', 'N', 'n', '']:
         print('Invalid option selected, please select again.')
 else:
     fileDir = input('Dir: ')
@@ -54,12 +57,19 @@ else:
             break
         else:
             print('Invalid option selected, please select again.')
+    while True:
+        sht = input('Chaos? (Y/n): ')
+        if sht in ['Y', 'y', 'N', 'n', '']:
+            break
+        else:
+            print('Invalid option selected, please select again.')
 enc = True if enc in ['Y', 'y', ''] else False
+sht = False if sht in ['Y', 'y', ''] else True
 
 print(f'Opening {fileDir}...', end = '')
 try:
-    targetFile = open(fileDir, 'rb')
-    fileData = list(targetFile.read())
+    targetFile = open(fileDir, 'r' if sht and not enc else 'rb')
+    fileData = list(map(eval, targetFile.read().split(' '))) if sht and not enc else list(targetFile.read())
     targetFile.close()
     print('\033[92m   [OK]\033[0m')
 except:
@@ -68,23 +78,32 @@ except:
 print(f'{"Encrypting..." if enc else "Decrypting..."}\n\n[--------------------------------------------------] 0/{len(fileData)}', end = '\r')
 
 n = int(key[0])
-if enc:
-    for x in range(len(fileData)):
-        fileData[x] = shift(fileData[x], n % 256)
-        n = (n * key[1] + key[2])
-        p = int((x + 1) / len(fileData) * 50)
-        print(f"[{'#' * p}{'-' * (50 - p)}] {x}/{len(fileData)}", end = '\r')
+if sht:
+    bv = np.array(range(1, len(fileData) + 1))
+    if enc:
+        fileData = np.array(fileData) * key[0] + key[1] + bv * key[2]
+    else:
+        fileData = (np.array(fileData) - key[1] - bv * key[2]) / key[0]
 else:
-    for x in range(len(fileData)):
-        fileData[x] = shift(fileData[x], -(n % 256))
-        n = (n * key[1] + key[2])
-        p = int((x + 1) / len(fileData) * 50)
-        print(f"[{'#' * p}{'-' * (50 - p)}] {x}/{len(fileData)}", end = '\r')
+    if enc:
+        for x in range(len(fileData)):
+            fileData[x] = shift(fileData[x], n % 256)
+            n = (n * key[1] + key[2])
+            p = int((x + 1) / len(fileData) * 50)
+            print(f"[{'#' * p}{'-' * (50 - p)}] {x}/{len(fileData)}", end = '\r')
+    else:
+        for x in range(len(fileData)):
+            fileData[x] = shift(fileData[x], -(n % 256))
+            n = (n * key[1] + key[2])
+            p = int((x + 1) / len(fileData) * 50)
+            print(f"[{'#' * p}{'-' * (50 - p)}] {x}/{len(fileData)}", end = '\r')
 
-print(f'\n\n\033[92m{"[FILE ENCRYPTED]" if enc else "[FILE DECRYPTED]"}\033[0m\n\nWriting to {fileDir}...', end = '')
+print(f'\n\n\033[92m{"[FILE ENCRYPTED]" if enc else "[FILE DECRYPTED]"}\033[0m\n\nFormating file data...')
+fileData = ' '.join(map(str, fileData)) if sht and enc else bytes(list(map(int, fileData)))
+print('\nWriting to {fileDir}...', end = '')
 try:
-    targetFile = open(fileDir, 'wb')
-    targetFile.write(bytes(fileData))
+    targetFile = open(fileDir, 'w' if sht and enc else 'wb')
+    targetFile.write(fileData)
     targetFile.close()
     print('\033[92m   [OK]\033[0m')
 except:
